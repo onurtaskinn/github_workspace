@@ -1,68 +1,47 @@
-// src/components/features/encryption/EncryptionTab.jsx
-import React, { useState, useEffect, useRef } from 'react';
+import React from 'react';
 import { useEncryption } from '../../../hooks/useEncryption';
+import Card from '../../common/Card';
 
 export const EncryptionTab = () => {
   const { handleEncryptForSelf, handleEncryptForSomeone, handleDecrypt } = useEncryption();
-  const [showEncryptOptions, setShowEncryptOptions] = useState(false);
-  const dropdownRef = useRef(null);
-
-  const handleEncryptClick = () => {
-    setShowEncryptOptions(!showEncryptOptions);
-  };
-
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setShowEncryptOptions(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [dropdownRef]);
 
   return (
-    <div className="space-y-4">
-      <div className="relative" ref={dropdownRef}>
-        <button
-          onClick={handleEncryptClick}
-          className="w-full text-left px-6 py-4 bg-green-200 text-green-700 rounded-xl hover:bg-green-300 transition-colors duration-200 ease-in-out text-base font-medium"
-        >
-          🔒 Encrypt Document
-        </button>
-        {showEncryptOptions && (
-          <div className="absolute mt-1 w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg z-10">
-            <button
-              className="w-full text-left px-6 py-4 bg-green-100 text-green-700 dark:bg-gray-600 dark:text-green-300 rounded-t-xl hover:bg-green-200 dark:hover:bg-gray-500 transition-colors duration-200 ease-in-out text-base font-medium"
-              onClick={() => {
-                handleEncryptForSelf();
-                setShowEncryptOptions(false);
-              }}
-            >
-              🔒 Encrypt for Yourself
-            </button>
-            <button
-              className="w-full text-left px-6 py-4 bg-green-100 text-green-700 dark:bg-gray-600 dark:text-green-300 rounded-b-xl hover:bg-green-200 dark:hover:bg-gray-500 transition-colors duration-200 ease-in-out text-base font-medium"
-              onClick={() => {
-                handleEncryptForSomeone();
-                setShowEncryptOptions(false);
-              }}
-            >
-              🔒 Encrypt for Someone
-            </button>
-          </div>
-        )}
-      </div>
-      <button
-        onClick={handleDecrypt}
-        className="w-full text-left px-6 py-4 bg-green-200 text-green-700 rounded-xl hover:bg-green-300 transition-colors duration-200 ease-in-out text-base font-medium"
-      >
-        🔓 Decrypt Document (Select File & Key)
-      </button>
+    <div className="grid grid-cols-1 gap-4">
+      <Card 
+        title="Encrypt for Yourself"
+        icon={
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+          </svg>
+        }
+        description="Encrypt a document with your own key"
+        actionText="Select Document"
+        onAction={handleEncryptForSelf}
+      />
+      
+      <Card 
+        title="Encrypt for Someone"
+        icon={
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+          </svg>
+        }
+        description="Encrypt a document with someone else's public key"
+        actionText="Select Document"
+        onAction={handleEncryptForSomeone}
+      />
+      
+      <Card 
+        title="Decrypt Document"
+        icon={
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" />
+          </svg>
+        }
+        description="Decrypt an encrypted document with a key file"
+        actionText="Select Document & Key"
+        onAction={handleDecrypt}
+      />
     </div>
   );
 };

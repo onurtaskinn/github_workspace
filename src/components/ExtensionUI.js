@@ -11,19 +11,17 @@ import { EncryptionTab } from './features/encryption/EncryptionTab';
 import { SettingsTab } from './features/settings/SettingsTab';
 import { GmailTab } from './features/gmail/GmailTab';
 import { ServerTab } from './features/server/ServerTab';
-
-
+import Header from './layout/Header';
+import TabNavigation from './layout/TabNavigation';
 
 const ExtensionUI = () => {
-  const { isAuthenticated, setShowPinModal} = useAuth();
+  const { isAuthenticated, setShowPinModal } = useAuth();
   const { darkMode } = useTheme();
   const { notification, setNotification } = useNotification();
-  const [ activeTab, setActiveTab] = useState('Signing');
-  const [ showingGmailCompose, setShowingGmailCompose ] = useState(false);
-
+  const [activeTab, setActiveTab] = useState('Signing');
+  const [showingGmailCompose, setShowingGmailCompose] = useState(false);
 
   let timeoutReached = false;
-
 
   // Check if we should directly open Gmail compose
   useEffect(() => {
@@ -57,43 +55,26 @@ const ExtensionUI = () => {
     };
   }, [setShowPinModal]);
 
-
-  
-
   const renderMainScreen = () => (
-    <div className="space-y-4">
-      <div className="flex space-x-2 border-b">
-        {['Signing', 'Encryption', 'Gmail', 'Settings','Server'].map((tab) => (
-          <button
-            key={tab}
-            className={`p-2 rounded-t-lg ${
-              activeTab === tab 
-                ? 'border-b-2 border-blue-500 bg-blue-50 dark:bg-gray-700 dark:border-blue-400' 
-                : 'hover:bg-gray-100 dark:hover:bg-gray-600'
-            } focus:outline-none focus:ring-0 focus:border-none`}
-            onClick={() => handleTabChange(tab)}
-          >
-            {tab}
-          </button>
-        ))}
-      </div>
+    <div className="flex flex-col h-full overflow-hidden">
+      <Header />
+      <TabNavigation activeTab={activeTab} onTabChange={handleTabChange} />
       
-      <div className="p-4 bg-white dark:bg-gray-800 min-h-full">
+      <div className="flex-1 overflow-auto p-4 bg-white dark:bg-gray-800 rounded-lg shadow-sm">
         {activeTab === 'Signing' && <SigningTab />}
         {activeTab === 'Encryption' && <EncryptionTab />}
         {activeTab === 'Gmail' && <GmailTab directCompose={window.openGmailComposeDirectly} onComposeShown={() => {
           window.openGmailComposeDirectly = false;
           setShowingGmailCompose(false);
         }} />}
-        {activeTab === 'Settings' && <SettingsTab />}
-        {activeTab === 'Server' && <ServerTab />}
-
+        {activeTab === 'Server' && <ServerTab />}        
+        {activeTab === 'Settings' && <SettingsTab />}        
       </div>
     </div>
   );
 
   return (
-    <div className={`w-80 p-4 ${darkMode ? 'dark bg-gray-900 text-gray-200' : 'bg-white'} min-h-screen`}>
+    <div className={`h-[600px] w-[500px] ${darkMode ? 'dark bg-gray-900 text-gray-200' : 'bg-gray-50'} transition-colors duration-200 flex flex-col overflow-hidden`}>
       {notification && (
         <Notification
           message={notification.message}
@@ -102,7 +83,9 @@ const ExtensionUI = () => {
         />
       )}
       <PinModal />
-      {!isAuthenticated || timeoutReached ? <AuthScreen /> : renderMainScreen()}
+      <div className="flex-1 overflow-hidden p-4">
+        {!isAuthenticated || timeoutReached ? <AuthScreen /> : renderMainScreen()}
+      </div>
     </div>
   );
 };
