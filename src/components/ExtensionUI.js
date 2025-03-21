@@ -15,12 +15,11 @@ import Header from './layout/Header';
 import TabNavigation from './layout/TabNavigation';
 
 const ExtensionUI = () => {
-  const { isAuthenticated, setShowPinModal } = useAuth();
+  const { isAuthenticated, setShowPinModal, handleLogout } = useAuth();
   const { darkMode } = useTheme();
   const { notification, setNotification } = useNotification();
   const [activeTab, setActiveTab] = useState('Signing');
   const [showingGmailCompose, setShowingGmailCompose] = useState(false);
-  const [timeoutReached, setTimeoutReached] = useState(false); // Change to state variable
 
 
   // Check if we should directly open Gmail compose
@@ -44,8 +43,6 @@ const ExtensionUI = () => {
     const handleTimeout = (message) => {
       if (message.timeoutReached) {
         setShowPinModal(true);
-        timeoutReached = true;
-        setTimeoutReached(true); // Use the setter function
       }
     };
 
@@ -54,7 +51,9 @@ const ExtensionUI = () => {
     return () => {
       chrome.runtime.onMessage.removeListener(handleTimeout);
     };
-  }, [setShowPinModal, setTimeoutReached]);
+  }, [setShowPinModal]);
+
+
 
   const renderMainScreen = () => (
     <div className="flex flex-col h-full overflow-hidden">
@@ -85,7 +84,7 @@ const ExtensionUI = () => {
       )}
       <PinModal />
       <div className="flex-1 overflow-hidden p-4">
-        {!isAuthenticated || timeoutReached ? <AuthScreen /> : renderMainScreen()}
+        {!isAuthenticated ? <AuthScreen /> : renderMainScreen()}
       </div>
     </div>
   );

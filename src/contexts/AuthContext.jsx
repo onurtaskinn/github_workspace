@@ -12,10 +12,22 @@ export const AuthProvider = ({ children }) => {
   const [timeoutReached, setTimeoutReached] = useState(false); 
   const { showNotification } = useNotification();
 
+  const [isBackgroundConnected, setIsBackgroundConnected] = useState(true);
+
+
   const resetTimer = () => {
-    chrome.runtime.sendMessage({ action: 'resetTimer' }, (response) => {
-      console.log(response.status);
-    });
+    try {
+      chrome.runtime.sendMessage({ action: 'resetTimer' }, (response) => {
+        if (chrome.runtime.lastError) {
+          console.log("Connection error:", chrome.runtime.lastError.message);
+          setIsBackgroundConnected(false);
+          return;
+        }
+        console.log(response ? response.status : "No response");
+      });
+    } catch (error) {
+      console.error("Error sending resetTimer message:", error);
+    }
   };
 
   const handlePinSubmit = async () => {
@@ -25,7 +37,6 @@ export const AuthProvider = ({ children }) => {
         resetTimer();
         setShowPinModal(false);
         setIsAuthenticated(true);
-        setTimeoutReached(false); // Reset timeout flag after successful login
         showNotification('Logged in successfully', 'success');
         setPin('');
       } else {
@@ -38,29 +49,42 @@ export const AuthProvider = ({ children }) => {
   };
 
   const handleLogout = async () => {
-    setIsAuthenticated(false);
-    setTimeoutReached(false);
-    const response = await browserApi.logout();
-    if (response.success) {
-      showNotification('Logged out successfully', 'info');
+    try {
+      setIsAuthenticated(false);
+      const response = await browserApi.logout();
+      if (response.success) {
+        showNotification('Logged out successfully', 'info');
+      } else {
+        console.log("Failed to logout: " + response);
+      }
+    } catch (error) {
+      console.error("Error during logout:", error);
+      // Still set isAuthenticated to false even if API call fails
+      setIsAuthenticated(false);
     }
-    else{
-      console.log("Failed to logout: " + response);
-    }
-    
   };
 
   useEffect(() => {
     const handleTimeoutMessage = (message) => {
       if (message.timeoutReached) {
-        setTimeoutReached(true);
+        // Instead of setting a separate flag, just log the user out
+        setIsAuthenticated(false);
         setShowPinModal(true);
       }
     };
 
-    chrome.runtime.onMessage.addListener(handleTimeoutMessage);
+    try {
+      chrome.runtime.onMessage.addListener(handleTimeoutMessage);
+    } catch (error) {
+      console.error("Error adding message listener:", error);
+    }
+
     return () => {
-      chrome.runtime.onMessage.removeListener(handleTimeoutMessage);
+      try {
+        chrome.runtime.onMessage.removeListener(handleTimeoutMessage);
+      } catch (error) {
+        console.error("Error removing message listener:", error);
+      }
     };
   }, []);
 
@@ -70,11 +94,9 @@ export const AuthProvider = ({ children }) => {
         isAuthenticated,
         showPinModal,
         pin,
-        timeoutReached,
         setIsAuthenticated,
         setShowPinModal,
         setPin,
-        setTimeoutReached,
         handlePinSubmit,
         handleLogout
       }}

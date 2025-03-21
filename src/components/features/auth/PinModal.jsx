@@ -5,18 +5,28 @@ import Button from '../../common/Button';
 import Input from '../../common/Input';
 
 export const PinModal = () => {
-  const { showPinModal, pin, setPin, setShowPinModal, handlePinSubmit, isAuthenticating, handleLogout, timeoutReached } = useAuth();
+  const { 
+    showPinModal, 
+    pin, 
+    setPin, 
+    setShowPinModal, 
+    handlePinSubmit,
+    handleLogout, 
+    isAuthenticating,
+    isAuthenticated
+  } = useAuth();
+
   const handleCancel = () => {
     setShowPinModal(false);
     
-    // If timeout has been reached, logging out is required
-    if (timeoutReached) {
+    // If not authenticated (timeout has occurred), log out
+    if (!isAuthenticated) {
       handleLogout();
     }
   };
   
   return (
-    <Modal isOpen={showPinModal} onClose={() => setShowPinModal(false)} title="Enter PIN">
+    <Modal isOpen={showPinModal} onClose={handleCancel} title="Enter PIN">
       <div className="space-y-4">
         <Input
           type="password"
