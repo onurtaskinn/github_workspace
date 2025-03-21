@@ -25,6 +25,7 @@ export const AuthProvider = ({ children }) => {
         resetTimer();
         setShowPinModal(false);
         setIsAuthenticated(true);
+        setTimeoutReached(false); // Reset timeout flag after successful login
         showNotification('Logged in successfully', 'success');
         setPin('');
       } else {
@@ -49,6 +50,20 @@ export const AuthProvider = ({ children }) => {
     
   };
 
+  useEffect(() => {
+    const handleTimeoutMessage = (message) => {
+      if (message.timeoutReached) {
+        setTimeoutReached(true);
+        setShowPinModal(true);
+      }
+    };
+
+    chrome.runtime.onMessage.addListener(handleTimeoutMessage);
+    return () => {
+      chrome.runtime.onMessage.removeListener(handleTimeoutMessage);
+    };
+  }, []);
+
   return (
     <AuthContext.Provider 
       value={{
@@ -56,8 +71,10 @@ export const AuthProvider = ({ children }) => {
         showPinModal,
         pin,
         timeoutReached,
+        setIsAuthenticated,
         setShowPinModal,
         setPin,
+        setTimeoutReached,
         handlePinSubmit,
         handleLogout
       }}

@@ -20,8 +20,8 @@ const ExtensionUI = () => {
   const { notification, setNotification } = useNotification();
   const [activeTab, setActiveTab] = useState('Signing');
   const [showingGmailCompose, setShowingGmailCompose] = useState(false);
+  const [timeoutReached, setTimeoutReached] = useState(false); // Change to state variable
 
-  let timeoutReached = false;
 
   // Check if we should directly open Gmail compose
   useEffect(() => {
@@ -45,6 +45,7 @@ const ExtensionUI = () => {
       if (message.timeoutReached) {
         setShowPinModal(true);
         timeoutReached = true;
+        setTimeoutReached(true); // Use the setter function
       }
     };
 
@@ -53,7 +54,7 @@ const ExtensionUI = () => {
     return () => {
       chrome.runtime.onMessage.removeListener(handleTimeout);
     };
-  }, [setShowPinModal]);
+  }, [setShowPinModal, setTimeoutReached]);
 
   const renderMainScreen = () => (
     <div className="flex flex-col h-full overflow-hidden">

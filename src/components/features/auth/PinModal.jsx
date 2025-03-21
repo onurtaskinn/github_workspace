@@ -5,7 +5,15 @@ import Button from '../../common/Button';
 import Input from '../../common/Input';
 
 export const PinModal = () => {
-  const { showPinModal, pin, setPin, setShowPinModal, handlePinSubmit, isAuthenticating } = useAuth();
+  const { showPinModal, pin, setPin, setShowPinModal, handlePinSubmit, isAuthenticating, handleLogout, timeoutReached } = useAuth();
+  const handleCancel = () => {
+    setShowPinModal(false);
+    
+    // If timeout has been reached, logging out is required
+    if (timeoutReached) {
+      handleLogout();
+    }
+  };
   
   return (
     <Modal isOpen={showPinModal} onClose={() => setShowPinModal(false)} title="Enter PIN">
@@ -31,7 +39,7 @@ export const PinModal = () => {
         <div className="flex justify-end space-x-2 mt-6">
           <Button
             variant="outline"
-            onClick={() => setShowPinModal(false)}
+            onClick={handleCancel}
           >
             Cancel
           </Button>

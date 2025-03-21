@@ -283,7 +283,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
 let lastCallTime = Date.now();
 let timeOutTimeMin = 1;
-let timeoutTimeMsec = timeOutTimeMin*0.01 * 60 * 1000;
+let timeoutTimeMsec = timeOutTimeMin*0.1 * 60 * 1000;
 let timeoutReached = false;
 
 // Function to reset the timer
