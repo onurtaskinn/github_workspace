@@ -1,0 +1,212 @@
+console.log('E-SBSL Background script loaded');
+
+// Gmail OAuth authentication
+function authenticate() {
+  return new Promise((resolve, reject) => {
+    console.log('Starting Gmail authentication process');
+    
+    chrome.identity.getAuthToken({ interactive: true }, function(token) {
+      if (chrome.runtime.lastError) {
+        console.error('Authentication error:', chrome.runtime.lastError);
+        reject(chrome.runtime.lastError);
+        return;
+      }
+      
+      if (token) {
+        console.log('Authentication successful, token received');
+        chrome.storage.local.set({ 'authToken': token }, function() {
+          console.log('Authentication token saved successfully');
+          resolve(token);
+        });
+      } else {
+        console.error('No authentication token received');
+        reject(new Error('Failed to obtain authentication token'));
+      }
+    });
+  });
+}
+
+// Get stored token or authenticate if needed
+function getStoredToken() {
+  return new Promise((resolve, reject) => {
+    chrome.storage.local.get('authToken', function(data) {
+      if (chrome.runtime.lastError) {
+        console.error('Error retrieving stored token:', chrome.runtime.lastError);
+        reject(chrome.runtime.lastError);
+        return;
+      }
+      
+      if (data.authToken) {
+        console.log('Using stored authentication token');
+        resolve(data.authToken);
+      } else {
+        console.log('No stored token found, authenticating...');
+        authenticate()
+          .then(resolve)
+          .catch(reject);
+      }
+    });
+  });
+}
+
+// Send email using Gmail API
+async function sendEmail(to, subject, body) {
+  console.log('Sending email to:', to);
+  
+  try {
+    const token = await getStoredToken();
+    console.log('Got authentication token for email sending');
+    
+    const email = [
+      'Content-Type: text/plain; charset="UTF-8"',
+      'MIME-Version: 1.0',
+      'Content-Transfer-Encoding: 7bit',
+      `To: ${to}`,
+      `Subject: ${subject}`,
+      '',
+      body
+    ].join('\r\n');
+    
+    const encodedEmail = btoa(unescape(encodeURIComponent(email)))
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=+$/, '');
+    
+    console.log('Sending request to Gmail API');
+    
+    const response = await fetch('https://www.googleapis.com/gmail/v1/users/me/messages/send', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        'raw': encodedEmail
+      })
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Gmail API error response:', errorText);
+      throw new Error(`Email sending failed: ${response.status} ${response.statusText}`);
+    }
+    
+    const result = await response.json();
+    console.log('Email sent successfully:', result);
+    return result;
+  } catch (error) {
+    console.error('Error sending email:', error);
+    throw error;
+  }
+}
+
+// Listen for messages from content scripts and popup
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  console.log('Background script received message:', request.action);
+  
+  
+  // Gmail authentication handler
+  if (request.action === 'authenticate') {
+    authenticate()
+      .then(token => {
+        console.log('Authentication successful');
+        sendResponse({ success: true, token });
+      })
+      .catch(error => {
+        console.error('Authentication failed:', error);
+        sendResponse({ success: false, error: error.message });
+      });
+    return true;
+  }
+  
+  // Email sending handler
+  if (request.action === 'sendEmail') {
+    console.log('Processing sendEmail request:', request);
+    
+    sendEmail(request.to, request.subject, request.body)
+      .then(result => {
+        console.log('Email sent successfully');
+        sendResponse({ success: true, result });
+      })
+      .catch(error => {
+        console.error('Email sending failed:', error);
+        sendResponse({ success: false, error: error.message });
+      });
+    return true; 
+  }
+});
+
+
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.action === 'openSecureCompose') {
+    console.log('Received request to open secure compose from Gmail');
+    
+    chrome.action.openPopup().then(() => {
+      setTimeout(() => {
+        chrome.runtime.sendMessage({ 
+          action: 'openGmailCompose',
+          source: 'gmail'
+        });
+      }, 500); 
+    }).catch(error => {
+      console.error('Error opening popup:', error);
+      
+      chrome.tabs.create({
+        url: chrome.runtime.getURL('popup.html?action=composeEmail')
+      });
+    });
+    
+    sendResponse({ success: true });
+    return true;
+  }
+});
+
+
+////////////////////////
+
+import browserApi from './src/utils/browserApi';
+
+let lastCallTime = Date.now();
+let timeOutTimeMin = 1;
+let timeoutTimeMsec = timeOutTimeMin * 60 * 1000;
+let timeoutReached = false;
+
+// Function to reset the timer
+const resetTimer = () => {
+  lastCallTime = Date.now();
+  timeoutReached = false; 
+  console.log('Timer reset');
+};
+
+const checkTimeout = async () => {
+  const currentTime = Date.now();
+  if (currentTime - lastCallTime >= timeoutTimeMsec && !timeoutReached) {
+    console.log('Timeout reached');
+    timeoutReached = true;
+    chrome.runtime.sendMessage({ timeoutReached: true });
+
+    const response = await browserApi.logout();
+    if (response.success) {
+      showNotification('Logged out successfully', 'info');
+    }
+    else{
+      console.log("Failed to logout: " + response);
+    }
+  }
+};
+
+setInterval(checkTimeout, 10000);
+
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.action === 'resetTimer') {
+    resetTimer();
+    sendResponse({ status: 'Timer reset' });
+  }
+  else if (message.action === 'updateTimeout') {
+    timeOutTimeMin = message.timeoutDuration ;
+    timeoutTimeMsec = timeOutTimeMin * 60 * 1000;
+    console.log(`Timeout duration updated to ${timeOutTimeMin} minutes`);
+    sendResponse({ status: 'Timeout updated' });
+  }
+});
+

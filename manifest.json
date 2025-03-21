@@ -1,0 +1,57 @@
+{
+  "manifest_version": 3,
+  "name": "E-SBSL Security Extension",
+  "version": "1.0",
+  "description": "E-Signature Based Security Library and Services Chrome Extension with Gmail Integration",
+  "permissions": [
+    "storage",
+    "activeTab",
+    "scripting",
+    "nativeMessaging",
+    "identity"
+  ],
+  "host_permissions": [
+    "https://mail.google.com/*",
+    "https://*.googleapis.com/*",
+    "https://getauth.com.tr/*",
+    "http://localhost:3030/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["contentScript.js"]
+    },
+    {
+      "matches": ["https://mail.google.com/*"],
+      "js": ["contentScript.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [{
+    "resources": ["icons/*"],
+    "matches": ["<all_urls>"]
+  }],  
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "oauth2": {
+    "client_id": "150710762975-dv0nlgevoffaphavnd3969dfcee45g3s.apps.googleusercontent.com",
+    "scopes": [
+      "https://www.googleapis.com/auth/gmail.compose",
+      "https://www.googleapis.com/auth/gmail.readonly"
+    ]
+  }
+}
