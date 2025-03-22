@@ -53,6 +53,29 @@ const ExtensionUI = () => {
     };
   }, [setShowPinModal]);
 
+  useEffect(() => {
+    if (isAuthenticated) {
+      // Define a handler function to reset the timer on user interaction
+      const handleUserInteraction = () => {
+        chrome.runtime.sendMessage({ action: 'resetTimer' });
+      };
+      
+      // Add event listeners for common user interactions
+      window.addEventListener('mousedown', handleUserInteraction);
+      window.addEventListener('keydown', handleUserInteraction);
+      window.addEventListener('mousemove', handleUserInteraction);
+      window.addEventListener('touchstart', handleUserInteraction);
+      
+      // Clean up function to remove the listeners when component unmounts
+      return () => {
+        window.removeEventListener('mousedown', handleUserInteraction);
+        window.removeEventListener('keydown', handleUserInteraction);
+        window.removeEventListener('mousemove', handleUserInteraction);
+        window.removeEventListener('touchstart', handleUserInteraction);
+      };
+    }
+  }, [isAuthenticated]); 
+
 
 
   const renderMainScreen = () => (
