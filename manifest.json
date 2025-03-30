@@ -48,7 +48,7 @@
     "128": "icons/icon128.png"
   },
   "oauth2": {
-    "client_id": "150710762975-dv0nlgevoffaphavnd3969dfcee45g3s.apps.googleusercontent.com",
+    "client_id": "150710762975-hgm14g4u0055n51ml54hj3cd6o9ehugh.apps.googleusercontent.com",
     "scopes": [
       "https://www.googleapis.com/auth/gmail.compose",
       "https://www.googleapis.com/auth/gmail.readonly"

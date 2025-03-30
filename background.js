@@ -217,11 +217,11 @@ async function sendEmail(to, subject, body) {
   }
 }
 
+
 // Listen for messages from content scripts and popup
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   console.log('Background script received message:', request.action);
-  
-  
+
   // Gmail authentication handler
   if (request.action === 'authenticate') {
     authenticate()
@@ -233,13 +233,12 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         console.error('Authentication failed:', error);
         sendResponse({ success: false, error: error.message });
       });
-    return true;
+    return true; // Indicates asynchronous response
   }
-  
+
   // Email sending handler
-  if (request.action === 'sendEmail') {
+  else if (request.action === 'sendEmail') { // Changed to else if
     console.log('Processing sendEmail request:', request);
-    
     sendEmail(request.to, request.subject, request.body)
       .then(result => {
         console.log('Email sent successfully');
@@ -249,33 +248,38 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         console.error('Email sending failed:', error);
         sendResponse({ success: false, error: error.message });
       });
-    return true; 
+    return true; // Indicates asynchronous response
   }
-});
 
-
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  if (request.action === 'openSecureCompose') {
+  // Secure compose handler
+  else if (request.action === 'openSecureCompose') { // Added else if
     console.log('Received request to open secure compose from Gmail');
-    
     chrome.action.openPopup().then(() => {
       setTimeout(() => {
-        chrome.runtime.sendMessage({ 
+        chrome.runtime.sendMessage({
           action: 'openGmailCompose',
           source: 'gmail'
         });
-      }, 500); 
+      }, 500);
     }).catch(error => {
       console.error('Error opening popup:', error);
-      
       chrome.tabs.create({
         url: chrome.runtime.getURL('popup.html?action=composeEmail')
       });
     });
-    
     sendResponse({ success: true });
-    return true;
+    return true; // Indicates asynchronous response
   }
+
+  // Optional: Handle other messages or do nothing
+  // else {
+  //   console.log('Received unhandled message action:', request.action);
+  //   // sendResponse({}); // Send an empty response if needed
+  // }
+
+  // If none of the conditions match and you're not sending an async response,
+  // you might not need to return true. Returning true is essential only when
+  // sendResponse will be called asynchronously (after the listener function initially returns).
 });
 
 
