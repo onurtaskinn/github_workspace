@@ -167,62 +167,118 @@ function getStoredToken() {
 }
 
 // Send email using Gmail API
-async function sendEmail(to, subject, body) {
-  console.log('Sending email to:', to);
-  
+async function sendEmail(to, subject, body, attachments = []) {
+  console.log('Sending email with attachments to:', to);
   try {
-    const token = await getStoredToken();
-    console.log('Got authentication token for email sending');
-    
-    const email = [
-      'Content-Type: text/plain; charset="UTF-8"',
-      'MIME-Version: 1.0',
-      'Content-Transfer-Encoding: 7bit',
-      `To: ${to}`,
-      `Subject: ${subject}`,
-      '',
-      body
-    ].join('\r\n');
-    
-    const encodedEmail = btoa(unescape(encodeURIComponent(email)))
-      .replace(/\+/g, '-')
-      .replace(/\//g, '_')
-      .replace(/=+$/, '');
-    
-    console.log('Sending request to Gmail API');
-    
-    const response = await fetch('https://www.googleapis.com/gmail/v1/users/me/messages/send', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        'raw': encodedEmail
-      })
-    });
-    
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Gmail API error response:', errorText);
-      throw new Error(`Email sending failed: ${response.status} ${response.statusText}`);
-    }
-    
-    const result = await response.json();
-    console.log('Email sent successfully:', result);
-    return result;
+      const token = await getStoredToken();
+      console.log('Got auth token for email sending');
+
+      // Generate a unique boundary string
+      const boundary = `----=Part_Boundary_${Date.now()}`;
+      let emailLines = [];
+
+      // --- Construct the MIME message ---
+
+      // 1. Common Headers
+      emailLines.push(`To: ${to}`);
+      emailLines.push(`Subject: ${subject}`);
+      emailLines.push('MIME-Version: 1.0');
+      emailLines.push(`Content-Type: multipart/mixed; boundary="${boundary}"`);
+      emailLines.push(''); // Empty line before first boundary
+
+      // 2. Body Part (Plain Text)
+      // Note: To send HTML, this part should be multipart/alternative
+      emailLines.push(`--${boundary}`); // Boundary marker
+      emailLines.push('Content-Type: text/plain; charset="UTF-8"');
+      emailLines.push('MIME-Version: 1.0');
+      emailLines.push('Content-Transfer-Encoding: 7bit'); // Use 7bit/8bit for plain text, or base64/quoted-printable if needed
+      emailLines.push(''); // Empty line before body content
+      emailLines.push(body);
+      emailLines.push(''); // Empty line after body content
+
+      // 3. Attachment Parts
+      for (const attachment of attachments) {
+          emailLines.push(`--${boundary}`); // Boundary marker
+          emailLines.push(`Content-Type: ${attachment.mimeType}`); // Use the MIME type from the file object
+          emailLines.push('Content-Transfer-Encoding: base64');
+          // Use filename*=UTF-8'' syntax for broader compatibility with non-ASCII filenames
+          const encodedFilename = encodeURIComponent(attachment.filename);
+          emailLines.push(`Content-Disposition: attachment; filename*=UTF-8''${encodedFilename}`);
+          // Fallback filename for older clients
+          // emailLines.push(`Content-Disposition: attachment; filename="${attachment.filename}"`); // Simpler alternative if UTF-8 filenames aren't needed
+          emailLines.push(''); // Empty line before attachment content
+          // Add base64 content, ensuring it's chunked correctly if very large (though usually handled by fetch)
+          emailLines.push(attachment.content);
+          emailLines.push(''); // Empty line after attachment content
+      }
+
+      // 4. Final Boundary Marker
+      emailLines.push(`--${boundary}--`);
+
+      // Join all lines with CRLF (\r\n) which is standard for email
+      const email = emailLines.join('\r\n');
+
+      // --- Base64URL Encode the entire MIME message ---
+      // Standard requires UTF-8 -> bytes -> base64url
+      // Using btoa after unescape(encodeURIComponent(email)) simulates this for common characters
+      
+      console.log('email_lines:', emailLines);
+      console.log('email:', email);
+
+      const encodedEmail = btoa(unescape(encodeURIComponent(email)))
+          .replace(/\+/g, '-') // Replace + with -
+          .replace(/\//g, '_') // Replace / with _
+          .replace(/=+$/, ''); // Remove trailing = padding
+
+      console.log('Encoded email:', encodedEmail);
+
+      console.log('Sending request to Gmail API with attachments');
+
+      // --- Make the API Call ---
+      const response = await fetch('https://www.googleapis.com/gmail/v1/users/me/messages/send', {
+          method: 'POST',
+          headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+              'raw': encodedEmail // Send the base64url encoded MIME message
+          })
+      });
+
+      // --- Handle Response ---
+      if (!response.ok) {
+          const errorText = await response.text();
+          console.error('Gmail API error response:', errorText);
+          // Attempt to parse error JSON for more details if possible
+          let errorDetail = `Email sending failed: ${response.status} ${response.statusText}`;
+           try {
+             const errorJson = JSON.parse(errorText);
+             if (errorJson.error && errorJson.error.message) {
+               errorDetail += ` - ${errorJson.error.message}`;
+             }
+           } catch (e) { /* Ignore parsing error */ }
+          throw new Error(errorDetail);
+      }
+
+      const result = await response.json();
+      console.log('Email with attachments sent successfully:', result);
+      return result;
+
   } catch (error) {
-    console.error('Error sending email:', error);
-    throw error;
+      console.error('Error sending email with attachments:', error);
+      // Rethrow the error so the caller knows it failed
+      throw error;
   }
 }
+
 
 
 // Listen for messages from content scripts and popup
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   console.log('Background script received message:', request.action);
 
-  // Gmail authentication handler
+  // Gmail authentication handler (Keep as is)
   if (request.action === 'authenticate') {
     authenticate()
       .then(token => {
@@ -236,50 +292,59 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return true; // Indicates asynchronous response
   }
 
-  // Email sending handler
-  else if (request.action === 'sendEmail') { // Changed to else if
+  // MODIFIED: Email sending handler (handles attachments)
+  if (request.action === 'sendEmail') {
     console.log('Processing sendEmail request:', request);
-    sendEmail(request.to, request.subject, request.body)
+
+    // Ensure attachments is an array, even if undefined/null
+    const attachments = request.attachments || [];
+
+    sendEmail(request.to, request.subject, request.body, attachments) // Pass attachments array
       .then(result => {
-        console.log('Email sent successfully');
+        console.log('Email sent successfully callback');
         sendResponse({ success: true, result });
       })
       .catch(error => {
-        console.error('Email sending failed:', error);
+        console.error('Email sending failed callback:', error);
+        // Send back the specific error message from the sendEmail function
         sendResponse({ success: false, error: error.message });
       });
     return true; // Indicates asynchronous response
   }
 
-  // Secure compose handler
-  else if (request.action === 'openSecureCompose') { // Added else if
-    console.log('Received request to open secure compose from Gmail');
-    chrome.action.openPopup().then(() => {
-      setTimeout(() => {
-        chrome.runtime.sendMessage({
-          action: 'openGmailCompose',
-          source: 'gmail'
-        });
-      }, 500);
-    }).catch(error => {
-      console.error('Error opening popup:', error);
-      chrome.tabs.create({
-        url: chrome.runtime.getURL('popup.html?action=composeEmail')
+  // Handler for opening popup from content script (Keep as is)
+  if (request.action === 'openSecureCompose') {
+      console.log('Received request to open secure compose from Gmail');
+      chrome.action.openPopup().then(() => {
+          setTimeout(() => {
+              chrome.runtime.sendMessage({ action: 'openGmailCompose', source: 'gmail' });
+          }, 500);
+      }).catch(error => {
+          console.error('Error opening popup:', error);
+          chrome.tabs.create({ url: chrome.runtime.getURL('popup.html?action=composeEmail') });
       });
-    });
-    sendResponse({ success: true });
-    return true; // Indicates asynchronous response
+      sendResponse({ success: true });
+      return true;
   }
 
-  // Optional: Handle other messages or do nothing
-  // else {
-  //   console.log('Received unhandled message action:', request.action);
-  //   // sendResponse({}); // Send an empty response if needed
-  // }
+   // Handlers for timeout timer (Keep as is)
+   if (request.action === 'resetTimer') {
+      resetTimer(); // Assuming resetTimer exists
+      sendResponse({ status: 'Timer reset' });
+      return true;
+   }
+   if (request.action === 'updateTimeout') {
+     // Assuming timeout variables exist (timeOutTimeMin, timeoutTimeMsec)
+     timeOutTimeMin = request.timeoutDuration ;
+     timeoutTimeMsec = timeOutTimeMin * 60 * 1000;
+     console.log(`Timeout duration updated to ${timeOutTimeMin} minutes`);
+     sendResponse({ status: 'Timeout updated' });
+     return true;
+   }
 
-  // If none of the conditions match and you're not sending an async response,
-  // you might not need to return true. Returning true is essential only when
-  // sendResponse will be called asynchronously (after the listener function initially returns).
+   console.log("Unhandled message action:", request.action);
+   sendResponse({ success: false, error: "Unknown action" });
+   return false; // Or true if any handler might be async
 });
 
 
