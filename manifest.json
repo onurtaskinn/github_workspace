@@ -8,13 +8,19 @@
     "activeTab",
     "scripting",
     "nativeMessaging",
-    "identity"
+    "identity",
+    "declarativeNetRequest",
+    "webNavigation",
+    "tabs",
+    "notifications"
   ],
   "host_permissions": [
     "https://mail.google.com/*",
     "https://*.googleapis.com/*",
     "https://getauth.com.tr/*",
-    "http://localhost:3030/*"
+    "http://localhost:3030/*",
+    "http://144.122.219.194/*",
+    "<all_urls>"
   ],
   "action": {
     "default_popup": "popup.html",
@@ -39,7 +45,7 @@
     }
   ],
   "web_accessible_resources": [{
-    "resources": ["icons/*"],
+    "resources": ["icons/*", "pin-popup.html", "pin-popup.js"],
     "matches": ["<all_urls>"]
   }],  
   "icons": {
@@ -48,10 +54,11 @@
     "128": "icons/icon128.png"
   },
   "oauth2": {
-    "client_id": "150710762975-hgm14g4u0055n51ml54hj3cd6o9ehugh.apps.googleusercontent.com",
+    "client_id": "436457817083-ohita8f5hogmhvq1i2bk1p50te50s7ob.apps.googleusercontent.com",
     "scopes": [
       "https://www.googleapis.com/auth/gmail.compose",
-      "https://www.googleapis.com/auth/gmail.readonly"
+      "https://www.googleapis.com/auth/gmail.readonly",
+      "https://www.googleapis.com/auth/gmail.send"
     ]
   }
 }

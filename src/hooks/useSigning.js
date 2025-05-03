@@ -4,7 +4,7 @@ import { useNotification } from '../contexts/NotificationContext'; // Notificati
 import browserApi from '../utils/browserApi';
 
 export const useSigning = () => {
-  const { handleFileSelection } = useFileSelection();
+  const { handleFileSelection, selectPdfFile, selectOfficeFile } = useFileSelection();
   const { showNotification } = useNotification();
 
   const handleSignDocument = () => {
@@ -25,6 +25,57 @@ export const useSigning = () => {
       }
     });
   };
+
+  const handleSignPDFDocument = () => {
+    selectPdfFile( async (file) => {
+      try {
+        console.log('Signing PDF document:', file.name); // Debug log
+        if(file.name.split('.').pop() !== 'pdf') {
+          showNotification('Please select a PDF document', 'error');
+          return;
+        }
+        const response = await browserApi.signPDFDocument(file.name);
+        console.log('Signing response:', response); // Debug log
+
+        if (response.success) {
+          showNotification('PDF signed successfully', 'success');
+        } else {
+          showNotification(response.message || 'Failed to sign PDF document', 'error');
+        }
+      } catch (error) {
+        console.error('Error signing PDF document:', error);
+        showNotification('Error signing PDF document', 'error');
+      }
+    });
+  };
+
+
+  const handleSignOfficeDocument = () => {
+    selectOfficeFile( async (file) => {
+      try {
+        console.log('Signing Office document:', file.name); // Debug log
+        if(file.name.split('.').pop() !== 'docx' 
+          && file.name.split('.').pop() !== 'pptx'
+          && file.name.split('.').pop() !== 'xlsx') {
+          showNotification('Please select a DOCX, PPTX or XLSX document', 'error');
+          return;
+        }
+
+        const response = await browserApi.signOfficeDocument(file.name);
+        console.log('Signing Office response:', response); // Debug log
+
+        if (response.success) {
+          showNotification('Office document signed successfully', 'success');
+        } else {
+          showNotification(response.message || 'Failed to sign Office document', 'error');
+        }
+      } catch (error) {
+        console.error('Error signing Office document:', error);
+        showNotification('Error signing Office document', 'error');
+      }
+    });
+  };
+
 
   const handleVerifySignature = () => {
     handleFileSelection('*.*', async (file) => {
@@ -48,6 +99,6 @@ export const useSigning = () => {
     });
   };
 
-  return { handleSignDocument, handleVerifySignature };
+  return { handleSignDocument, handleVerifySignature, handleSignOfficeDocument, handleSignPDFDocument };
 };
 

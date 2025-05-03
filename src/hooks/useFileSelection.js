@@ -13,7 +13,18 @@ export const useFileSelection = () => {
       input.click();
     };
   
-    return { handleFileSelection };
-  };
-
+    const selectPdfFile = (callback) => {
+      handleFileSelection('application/pdf', callback);
+    };
   
+    const selectOfficeFile = (callback) => {
+      const officeMimeTypes = [
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
+        'application/vnd.openxmlformats-officedocument.presentationml.presentation' // .pptx
+      ];
+      handleFileSelection(officeMimeTypes.join(','), callback);
+    };
+  
+    return { handleFileSelection, selectPdfFile, selectOfficeFile };
+  };

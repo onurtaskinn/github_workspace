@@ -12,6 +12,7 @@ module.exports = {
       filename: 'background.js'
     },
     contentScript: './contentScript.js',
+    pinPopup: './src/pin-popup.js'
   },
   output: {
     path: path.resolve(__dirname, 'dist'),
