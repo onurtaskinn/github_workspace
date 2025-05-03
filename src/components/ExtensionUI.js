@@ -9,6 +9,7 @@ import { PinModal } from './features/auth/PinModal';
 import { SigningTab } from './features/signing/SigningTab';
 import { EncryptionTab } from './features/encryption/EncryptionTab';
 import { SettingsTab } from './features/settings/SettingsTab';
+import { PgpTab } from './features/pgp/PgpTab';
 import { GmailTab } from './features/gmail/GmailTab';
 import { ServerTab } from './features/server/ServerTab';
 import { DecryptionView } from './features/email/DecryptionView';
@@ -36,7 +37,7 @@ const ExtensionUI = () => {
             window.directOpenGmailCompose = false;
         }
 
-        // Þifreli içerik çözme isteði
+        // ï¿½ifreli iï¿½erik ï¿½ï¿½zme isteï¿½i
         if (window.showDecryptionView && isAuthenticated) {
             console.log('Opening decryption view from background');
             setShowDecryption(true);
@@ -88,7 +89,7 @@ const ExtensionUI = () => {
     }, [isAuthenticated]);
 
     const renderMainScreen = () => {
-        // Eðer þifre çözme görünümü gösteriliyorsa
+        // Eï¿½er ï¿½ifre ï¿½ï¿½zme gï¿½rï¿½nï¿½mï¿½ gï¿½steriliyorsa
         if (showDecryption) {
             return (
                 <div className="flex flex-col h-full overflow-hidden">
@@ -103,7 +104,7 @@ const ExtensionUI = () => {
             );
         }
 
-        // Normal görünüm
+        // Normal gï¿½rï¿½nï¿½m
         return (
             <div className="flex flex-col h-full overflow-hidden">
                 <Header />
@@ -116,6 +117,7 @@ const ExtensionUI = () => {
                         window.openGmailComposeDirectly = false;
                         setShowingGmailCompose(false);
                     }} />}
+                    {activeTab === 'PGP' && <PgpTab />}
                     {activeTab === 'Server' && <ServerTab />}
                     {activeTab === 'Settings' && <SettingsTab />}
                 </div>
