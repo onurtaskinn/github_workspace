@@ -9,8 +9,8 @@ import { PinModal } from './features/auth/PinModal';
 import { SigningTab } from './features/signing/SigningTab';
 import { EncryptionTab } from './features/encryption/EncryptionTab';
 import { SettingsTab } from './features/settings/SettingsTab';
-import { PgpTab } from './features/pgp/PgpTab';
 import { GmailTab } from './features/gmail/GmailTab';
+import { PgpTab } from './features/pgp/PgpTab';
 import { ServerTab } from './features/server/ServerTab';
 import { DecryptionView } from './features/email/DecryptionView';
 import Header from './layout/Header';
@@ -113,11 +113,11 @@ const ExtensionUI = () => {
                 <div className="flex-1 overflow-auto p-4 bg-white dark:bg-gray-800 rounded-lg shadow-sm">
                     {activeTab === 'Signing' && <SigningTab />}
                     {activeTab === 'Encryption' && <EncryptionTab />}
+                    {activeTab === 'PGP' && <PgpTab />}
                     {activeTab === 'Gmail' && <GmailTab directCompose={window.openGmailComposeDirectly} onComposeShown={() => {
                         window.openGmailComposeDirectly = false;
                         setShowingGmailCompose(false);
                     }} />}
-                    {activeTab === 'PGP' && <PgpTab />}
                     {activeTab === 'Server' && <ServerTab />}
                     {activeTab === 'Settings' && <SettingsTab />}
                 </div>

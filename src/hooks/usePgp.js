@@ -1,175 +1,251 @@
-// src/hooks/usePgp.js
-
-import React from 'react';
+import { useState } from 'react';
 import * as openpgp from 'openpgp';
+import { useNotification } from './useNotification';
 import { useFileSelection } from './useFileSelection';
-import { useNotification } from '../contexts/NotificationContext';
 
 export const usePgp = () => {
-  const { handleFileSelection } = useFileSelection();
   const { showNotification } = useNotification();
+  const { handleFileSelection } = useFileSelection();
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
 
-  // Binary dosyaları Uint8Array olarak oku
-  const readFileAsBinary = (file) => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = (e) => resolve(new Uint8Array(e.target.result));
-      reader.onerror = reject;
-      reader.readAsArrayBuffer(file);
-    });
-  };
+  // PGP anahtar çifti oluşturma
+  const generateKeyPair = async (name, email, passphrase) => {
+    if (!name || !email || !passphrase) {
+      showNotification('Lütfen tüm alanları doldurun', 'error');
+      return null;
+    }
 
-  // Text dosyaları (key dosyaları) string olarak oku
-  const readFileAsText = (file) => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = (e) => resolve(e.target.result);
-      reader.onerror = reject;
-      reader.readAsText(file);
-    });
-  };
-
-  const handleSignFile = async () => {
     try {
-      // Step 1: Select file to sign
-      const fileToSign = await new Promise((resolve) => {
-        handleFileSelection('*.*', resolve);
+      setIsGenerating(true);
+      showNotification('Anahtar çifti oluşturuluyor...', 'info');
+
+      const { privateKey, publicKey, revocationCertificate } = await openpgp.generateKey({
+        type: 'ecc',
+        curve: 'curve25519',
+        userIDs: [{ name, email }],
+        passphrase,
+        format: 'armored'
       });
 
-      // Step 2: Select private key
-      const privateKeyFile = await new Promise((resolve) => {
-        handleFileSelection('.key', resolve);
-      });
+      setIsGenerating(false);
+      showNotification('Anahtar çifti başarıyla oluşturuldu', 'success');
 
-      // Step 3: Get passphrase
-      const passphrase = prompt('Enter private key passphrase:');
-      
-      if (!passphrase) {
-        showNotification('Passphrase is required', 'error');
-        return;
-      }
-
-      // Read files - dosyayı binary olarak oku, key'i text olarak oku
-      const fileContent = await readFileAsBinary(fileToSign);
-      const privateKeyContent = await readFileAsText(privateKeyFile);
-
-      // Decrypt private key
-      const privateKey = await openpgp.decryptKey({
-        privateKey: await openpgp.readPrivateKey({ armoredKey: privateKeyContent }),
-        passphrase: passphrase
-      });
-
-      // Create signature - binary dosya için createMessage({ binary: ... }) kullan
-      const message = await openpgp.createMessage({ binary: fileContent });
-      const detachedSignature = await openpgp.sign({
-        message,
-        signingKeys: privateKey,
-        detached: true,
-        format: 'armored' // Imzayı armored format olarak al
-      });
-
-      // Download signature file
-      downloadKey(detachedSignature, `${fileToSign.name}.sig`);
-      
-      showNotification('File signed successfully', 'success');
+      return {
+        privateKey,
+        publicKey,
+        revocationCertificate
+      };
     } catch (error) {
-      console.error('Error signing file:', error);
-      showNotification('Error signing file: ' + error.message, 'error');
+      console.error('Anahtar oluşturma hatası:', error);
+      setIsGenerating(false);
+      showNotification(`Anahtar oluşturma hatası: ${error.message}`, 'error');
+      return null;
     }
   };
 
-  const handleVerifySignature = async () => {
+  // Dosya imzalama
+  const signFile = async (file, privateKeyFile, passphrase) => {
     try {
-      // Step 1: Select original file
-      const originalFile = await new Promise((resolve) => {
-        handleFileSelection('*.*', resolve);
+      setIsProcessing(true);
+      showNotification('Dosya imzalanıyor...', 'info');
+
+      // Orijinal dosya içeriğini oku
+      const fileContent = await file.arrayBuffer();
+      const fileData = new Uint8Array(fileContent);
+
+      // Private key içeriğini oku
+      const privateKeyContent = await privateKeyFile.text();
+      
+      // Private key'i decrypt et
+      const privateKey = await openpgp.decryptKey({
+        privateKey: await openpgp.readPrivateKey({ armoredKey: privateKeyContent }),
+        passphrase
       });
 
-      // Step 2: Select signature file
-      const signatureFile = await new Promise((resolve) => {
-        handleFileSelection('.sig', resolve);
+      // İmzala
+      const message = await openpgp.createMessage({ binary: fileData });
+      const detachedSignature = await openpgp.sign({
+        message,
+        signingKeys: privateKey,
+        detached: true
       });
 
-      // Step 3: Select public key
-      const publicKeyFile = await new Promise((resolve) => {
-        handleFileSelection('.key', resolve);
-      });
+      setIsProcessing(false);
+      showNotification('Dosya başarıyla imzalandı', 'success');
 
-      // Read files
-      const fileContent = await readFileAsBinary(originalFile);
-      const signatureContent = await readFileAsText(signatureFile);
-      const publicKeyContent = await readFileAsText(publicKeyFile);
+      return {
+        fileName: `${file.name}.sig`,
+        content: detachedSignature
+      };
+    } catch (error) {
+      console.error('Dosya imzalama hatası:', error);
+      setIsProcessing(false);
+      showNotification(`Dosya imzalama hatası: ${error.message}`, 'error');
+      return null;
+    }
+  };
 
-      // Parse keys and message
+
+  const verifySignature = async (file, signatureFile, publicKeyFile) => {
+    try {
+      setIsProcessing(true);
+      showNotification('İmza doğrulanıyor...', 'info');
+  
+      // Orijinal dosya içeriğini oku
+      const fileContent = await file.arrayBuffer();
+      const fileData = new Uint8Array(fileContent);
+  
+      // İmza dosyasını oku
+      const signatureContent = await signatureFile.text();
+  
+      // Public key içeriğini oku
+      const publicKeyContent = await publicKeyFile.text();
       const publicKey = await openpgp.readKey({ armoredKey: publicKeyContent });
-      const message = await openpgp.createMessage({ binary: fileContent });
-      const signature = await openpgp.readSignature({ armoredSignature: signatureContent });
-
-      // Verify signature
+  
+      // İmzayı doğrula
+      const message = await openpgp.createMessage({ binary: fileData });
+      const signature = await openpgp.readSignature({
+        armoredSignature: signatureContent
+      });
+  
       const verificationResult = await openpgp.verify({
         message,
         signature,
         verificationKeys: publicKey
       });
-
-      const { verified } = verificationResult.signatures[0];
+  
+      const { verified, keyID } = verificationResult.signatures[0];
       
-      // Signature verification
       try {
-        await verified; // throws on invalid signature
-        showNotification('Signature is valid!', 'success');
+        await verified; // Geçersiz imzada hata fırlatır
+        setIsProcessing(false);
+        showNotification(`İmza geçerli! İmzalayan anahtar ID: ${keyID.toHex()}`, 'success');
+        return { success: true, keyID: keyID.toHex() };
       } catch (e) {
-        showNotification('Invalid signature: ' + e.message, 'error');
+        setIsProcessing(false);
+        showNotification(`İmza geçerli değil: ${e.message}`, 'error');
+        return false;
       }
-      
     } catch (error) {
-      console.error('Error verifying signature:', error);
-      showNotification('Error verifying signature: ' + error.message, 'error');
+      console.error('İmza doğrulama hatası:', error);
+      setIsProcessing(false);
+      showNotification(`İmza doğrulama hatası: ${error.message}`, 'error');
+      return null;
     }
   };
 
-  const handleGenerateKeyPair = async () => {
-    // Modal açma ve form değerleri
-    const userName = prompt('Enter your name:');
-    const userEmail = prompt('Enter your email:');
-    const passphrase = prompt('Enter passphrase:');
-    
-    if (!userName || !userEmail || !passphrase) {
-      showNotification('Please provide all required information', 'error');
-      return;
-    }
 
+  const encryptFile = async (file, publicKeyFile) => {
     try {
-      const { privateKey, publicKey } = await openpgp.generateKey({
-        type: 'ecc', 
-        curve: 'curve25519',
-        userIDs: [{ name: userName, email: userEmail }],
-        passphrase: passphrase,
-        format: 'armored'
+      setIsProcessing(true);
+      showNotification('Dosya şifreleniyor...', 'info');
+  
+      // Dosya içeriğini oku
+      const fileContent = await file.arrayBuffer();
+      const fileData = new Uint8Array(fileContent);
+  
+      // Public key içeriğini oku
+      const publicKeyContent = await publicKeyFile.text();
+      const publicKey = await openpgp.readKey({ armoredKey: publicKeyContent });
+  
+      // Şifrele
+      const message = await openpgp.createMessage({ binary: fileData });
+      const encrypted = await openpgp.encrypt({
+        message,
+        encryptionKeys: publicKey,
+        format: 'binary'
       });
-
-      // Download keys
-      downloadKey(privateKey, `${userEmail}_private.key`);
-      downloadKey(publicKey, `${userEmail}_public.key`);
-      
-      showNotification('Key pair generated successfully', 'success');
+  
+      setIsProcessing(false);
+      showNotification('Dosya başarıyla şifrelendi', 'success');
+  
+      return {
+        fileName: `${file.name}.pgp`,
+        content: encrypted
+      };
     } catch (error) {
-      console.error('Error generating keys:', error);
-      showNotification('Error generating key pair: ' + error.message, 'error');
+      console.error('Dosya şifreleme hatası:', error);
+      setIsProcessing(false);
+      showNotification(`Dosya şifreleme hatası: ${error.message}`, 'error');
+      return null;
     }
   };
+  
+  // Dosya şifresini çözme
+  const decryptFile = async (encryptedFile, privateKeyFile, passphrase) => {
+    try {
+      setIsProcessing(true);
+      showNotification('Dosya şifresi çözülüyor...', 'info');
+  
+      // Şifreli dosya içeriğini oku
+      const encryptedContent = await encryptedFile.arrayBuffer();
+      const encryptedData = new Uint8Array(encryptedContent);
+  
+      // Private key içeriğini oku
+      const privateKeyContent = await privateKeyFile.text();
+      
+      // Private key'i decrypt et
+      const privateKey = await openpgp.decryptKey({
+        privateKey: await openpgp.readPrivateKey({ armoredKey: privateKeyContent }),
+        passphrase
+      });
+  
+      // Şifreyi çöz
+      const message = await openpgp.readMessage({
+        binaryMessage: encryptedData
+      });
+      
+      const { data: decrypted } = await openpgp.decrypt({
+        message,
+        decryptionKeys: privateKey,
+        format: 'binary'
+      });
+  
+      // Orjinal dosya adını al (varsa .pgp uzantısını kaldır)
+      const originalFileName = encryptedFile.name.endsWith('.pgp') 
+        ? encryptedFile.name.slice(0, -4) 
+        : `decrypted_${encryptedFile.name}`;
+  
+      setIsProcessing(false);
+      showNotification('Dosya şifresi başarıyla çözüldü', 'success');
+  
+      return {
+        fileName: originalFileName,
+        content: decrypted
+      };
+    } catch (error) {
+      console.error('Dosya şifre çözme hatası:', error);
+      setIsProcessing(false);
+      showNotification(`Dosya şifre çözme hatası: ${error.message}`, 'error');
+      return null;
+    }
+  };  
 
-  const downloadKey = (keyContent, fileName) => {
-    const blob = new Blob([keyContent], { type: 'text/plain' });
+
+  // Yardımcı fonksiyonlar
+  const downloadAsFile = (content, filename) => {
+    const blob = new Blob([content], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = fileName;
+    a.download = filename;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   };
+  
 
-  return { handleGenerateKeyPair, handleSignFile, handleVerifySignature };
+  return {
+    generateKeyPair,
+    signFile,
+    verifySignature,
+    encryptFile,
+    decryptFile,
+    downloadAsFile,
+    isGenerating,
+    isProcessing
+  };
 };
+

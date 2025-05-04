@@ -25,7 +25,7 @@ const TabNavigation = ({ activeTab, onTabChange }) => {
       case 'PGP':
         return (
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" />
           </svg>
         );        
       case 'Settings':
@@ -48,7 +48,7 @@ const TabNavigation = ({ activeTab, onTabChange }) => {
 
   return (
     <div className="flex border-b dark:border-gray-700 mb-4 overflow-x-auto hide-scrollbar">
-      {['Signing', 'Encryption', 'Gmail', 'Server', 'PGP', 'Settings'].map((tab) => (
+      {['Signing', 'Encryption', 'Gmail', 'PGP', 'Server', 'Settings'].map((tab) => (
         <button
           key={tab}
           className={`px-4 py-3 text-sm font-medium transition-all duration-200 border-b-2 flex items-center whitespace-nowrap ${
